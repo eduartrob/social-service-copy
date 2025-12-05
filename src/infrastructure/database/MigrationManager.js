@@ -70,7 +70,7 @@ class MigrationManager {
   async getExecutedMigrations() {
     try {
       const [results] = await this.sequelize.query(
-        'SELECT name FROM SequelizeMeta ORDER BY name'
+        'SELECT name FROM "SequelizeMeta" ORDER BY name'
       );
       return results.map(row => row.name);
     } catch (error) {
@@ -117,14 +117,14 @@ class MigrationManager {
       if (direction === 'up') {
         // Registrar migración como ejecutada
         await this.sequelize.query(
-          'INSERT INTO SequelizeMeta (name) VALUES (?)',
+          'INSERT INTO "SequelizeMeta" (name) VALUES (?)',
           { replacements: [migrationFile] }
         );
         console.log(chalk.green(`✅ Migración ${migrationFile} ejecutada exitosamente`));
       } else {
         // Remover migración del registro
         await this.sequelize.query(
-          'DELETE FROM SequelizeMeta WHERE name = ?',
+          'DELETE FROM "SequelizeMeta" WHERE name = ?',
           { replacements: [migrationFile] }
         );
         console.log(chalk.yellow(`↩️  Migración ${migrationFile} revertida exitosamente`));
