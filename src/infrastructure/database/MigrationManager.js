@@ -1,24 +1,23 @@
 // Sistema de migraciones para el Social Service
 const { Sequelize } = require('sequelize');
 // Función local para obtener configuración de BD
-function getDatabaseConfig(environment = 'development', dialect = 'mysql') {
+function getDatabaseConfig(environment = 'development', dialect = 'postgres') {
   return {
     dialect: dialect,
     host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT) || 3306,
-    database: process.env.DB_NAME || 'posts_dev_db',
-    username: process.env.DB_USER || 'posts_user',
-    password: process.env.DB_PASSWORD || 'posts123',
+    port: parseInt(process.env.DB_PORT) || 5432,
+    database: process.env.DB_NAME || 'social_service_pg_db',
+    username: process.env.DB_USER || 'social_service_pg_user',
+    password: process.env.DB_PASSWORD || 'social_service_secure_pass',
     logging: environment === 'development' ? console.log : false,
     timezone: '+00:00',
     define: {
-      charset: 'utf8mb4',
-      collate: 'utf8mb4_unicode_ci',
       underscored: true,
       freezeTableName: true
     }
   };
 }
+
 const fs = require('fs').promises;
 const path = require('path');
 const chalk = require('chalk');
@@ -26,7 +25,7 @@ const chalk = require('chalk');
 class MigrationManager {
   constructor(environment = null, dialect = null) {
     this.environment = environment || process.env.NODE_ENV || 'development';
-    this.dialect = dialect || process.env.DB_DIALECT || 'mysql';
+    this.dialect = dialect || process.env.DB_DIALECT || 'postgres';
     this.config = getDatabaseConfig(this.environment, this.dialect);
     this.sequelize = new Sequelize(this.config);
     this.migrationsPath = path.join(__dirname, '../migrations');
@@ -38,7 +37,7 @@ class MigrationManager {
     try {
       await this.sequelize.authenticate();
       console.log(chalk.green(`✅ Conexión establecida con ${this.dialect} (${this.environment})`));
-      
+
       // Crear tabla de migraciones si no existe
       await this.createMigrationsTable();
       return true;
@@ -51,19 +50,19 @@ class MigrationManager {
   // Crear tabla para trackear migraciones
   async createMigrationsTable() {
     const tableName = 'SequelizeMeta';
-    
-    const query = this.dialect === 'sqlite' 
+
+    const query = this.dialect === 'sqlite'
       ? `CREATE TABLE IF NOT EXISTS "${tableName}" (
           "name" VARCHAR(255) PRIMARY KEY
         )`
       : this.dialect === 'postgres'
-      ? `CREATE TABLE IF NOT EXISTS "${tableName}" (
+        ? `CREATE TABLE IF NOT EXISTS "${tableName}" (
           "name" VARCHAR(255) PRIMARY KEY
         )`
-      : `CREATE TABLE IF NOT EXISTS \`${tableName}\` (
+        : `CREATE TABLE IF NOT EXISTS \`${tableName}\` (
           \`name\` VARCHAR(255) NOT NULL PRIMARY KEY
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`;
-        
+
     await this.sequelize.query(query);
   }
 
@@ -95,26 +94,26 @@ class MigrationManager {
   async getPendingMigrations() {
     const executed = await this.getExecutedMigrations();
     const available = await this.getAvailableMigrations();
-    
+
     return available.filter(migration => !executed.includes(migration));
   }
 
   // Ejecutar migración individual
   async executeMigration(migrationFile, direction = 'up') {
     const migrationPath = path.join(this.migrationsPath, migrationFile);
-    
+
     try {
       const migration = require(migrationPath);
-      
+
       if (!migration[direction]) {
         throw new Error(`Método '${direction}' no encontrado en migración ${migrationFile}`);
       }
 
       console.log(chalk.blue(`🔄 Ejecutando ${migrationFile} (${direction})...`));
-      
+
       const queryInterface = this.sequelize.getQueryInterface();
       await migration[direction](queryInterface, Sequelize);
-      
+
       if (direction === 'up') {
         // Registrar migración como ejecutada
         await this.sequelize.query(
@@ -130,7 +129,7 @@ class MigrationManager {
         );
         console.log(chalk.yellow(`↩️  Migración ${migrationFile} revertida exitosamente`));
       }
-      
+
       return true;
     } catch (error) {
       console.error(chalk.red(`❌ Error ejecutando migración ${migrationFile}:`), error.message);
@@ -141,18 +140,18 @@ class MigrationManager {
   // Ejecutar todas las migraciones pendientes
   async runPendingMigrations() {
     const pendingMigrations = await this.getPendingMigrations();
-    
+
     if (pendingMigrations.length === 0) {
       console.log(chalk.green('✅ No hay migraciones pendientes'));
       return true;
     }
 
     console.log(chalk.blue(`🚀 Ejecutando ${pendingMigrations.length} migraciones pendientes...`));
-    
+
     for (const migration of pendingMigrations) {
       await this.executeMigration(migration, 'up');
     }
-    
+
     console.log(chalk.green(`✅ Todas las migraciones ejecutadas correctamente`));
     return true;
   }
@@ -160,7 +159,7 @@ class MigrationManager {
   // Revertir última migración
   async rollbackLastMigration() {
     const executedMigrations = await this.getExecutedMigrations();
-    
+
     if (executedMigrations.length === 0) {
       console.log(chalk.yellow('⚠️  No hay migraciones para revertir'));
       return true;
@@ -168,7 +167,7 @@ class MigrationManager {
 
     const lastMigration = executedMigrations[executedMigrations.length - 1];
     await this.executeMigration(lastMigration, 'down');
-    
+
     return true;
   }
 
@@ -254,10 +253,10 @@ module.exports = {
 
     await fs.mkdir(this.migrationsPath, { recursive: true });
     await fs.writeFile(migrationPath, template);
-    
+
     console.log(chalk.green(`✅ Migración creada: ${migrationName}`));
     console.log(chalk.blue(`📝 Edita el archivo: ${migrationPath}`));
-    
+
     return migrationName;
   }
 

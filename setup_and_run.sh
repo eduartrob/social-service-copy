@@ -38,9 +38,15 @@ else
     sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
 fi
 
-# 3. Ejecutar Migraciones (si aplica)
-# Nota: Como el servicio usa sync: false y tiene migraciones, deberíamos ejecutarlas o sincronizar si es un setup inicial.
-# Por seguridad, intentaremos conectar primero.
+# 3. Ejecutar Migraciones
+echo -e "\n${BLUE}📊 Ejecutando migraciones de base de datos...${NC}"
+npm run migrate:up
+
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}✅ Migraciones ejecutadas correctamente.${NC}"
+else
+    echo -e "${RED}⚠️  Error en migraciones (puede que ya existan las tablas).${NC}"
+fi
 
 # 4. Iniciar Aplicación
 echo -e "\n${GREEN}✅ Setup completado. Iniciando aplicación...${NC}"

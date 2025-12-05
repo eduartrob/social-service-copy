@@ -29,8 +29,8 @@ const argv = yargs
   .option('dialect', {
     alias: 'd',
     describe: 'Dialecto de base de datos',
-    choices: ['mysql', 'postgresql', 'sqlite'],
-    default: process.env.DB_DIALECT || 'mysql'
+    choices: ['postgres', 'mysql', 'sqlite'],
+    default: process.env.DB_DIALECT || 'postgres'
   })
   .option('interactive', {
     alias: 'i',
@@ -82,7 +82,7 @@ async function main() {
     }
 
     const migrationManager = new MigrationManager(environment, dialect);
-    
+
     // Inicializar conexión
     const connected = await migrationManager.initialize();
     if (!connected) {
@@ -118,7 +118,7 @@ async function main() {
     }
 
     await migrationManager.close();
-    
+
   } catch (error) {
     console.error(chalk.red('❌ Error:'), error.message);
     process.exit(1);
@@ -152,7 +152,7 @@ async function handleCreateMigration(migrationManager, name) {
 // Mostrar guía de configuración
 async function showSetupGuide(environment, dialect) {
   console.log(chalk.green('🚀 Guía de Configuración Social Service\n'));
-  
+
   console.log(chalk.cyan('Configuración seleccionada:'));
   console.log(`   Entorno: ${chalk.yellow(environment)}`);
   console.log(`   Base de datos: ${chalk.yellow(dialect)}\n`);
@@ -167,7 +167,7 @@ async function showSetupGuide(environment, dialect) {
     console.log(`DB_NAME=posts_dev_db`);
     console.log(`DB_USER=posts_user`);
     console.log(`DB_PASSWORD=posts123`);
-    
+
     if (environment === 'production') {
       console.log(`DB_SSL=false`);
     }
@@ -201,7 +201,7 @@ async function showSetupGuide(environment, dialect) {
     console.log(chalk.blue('\n🔄 Ejecutando migraciones...\n'));
     const migrationManager = new MigrationManager(environment, dialect);
     const connected = await migrationManager.initialize();
-    
+
     if (connected) {
       await migrationManager.runPendingMigrations();
       await migrationManager.close();
