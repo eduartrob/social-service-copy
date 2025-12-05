@@ -19,18 +19,20 @@ class GetCommentsUseCase {
 
       // 2. Obtener la publicación con comentarios
       const publication = await this.publicationRepository.findById(publicationId);
-      
+
       if (!publication) {
         throw new Error('Publicación no encontrada');
       }
 
       // 3. Extraer comentarios del agregado
       const comments = publication.comments || [];
-      
+
       // 4. Formatear comentarios para respuesta
       const formattedComments = comments.map(comment => ({
         id: comment.id,
         authorId: comment.authorId,
+        authorName: comment.authorName, // ✅ Nombre del autor
+        authorAvatar: comment.authorAvatar, // ✅ Avatar del autor
         content: comment.content,
         parentCommentId: comment.parentId,
         level: comment.level,

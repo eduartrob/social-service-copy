@@ -3,12 +3,12 @@ const IPublicationRepository = require('../../domain/repositories/IPublicationRe
 const Publication = require('../../domain/aggregates/Publication/Publication');
 const Comment = require('../../domain/aggregates/Publication/entities/Comment');
 const MediaItem = require('../../domain/aggregates/Publication/entities/MediaItem');
-const { 
-  PublicationModel, 
-  CommentModel, 
-  LikeModel, 
-  MediaItemModel, 
-  UserProfileModel 
+const {
+  PublicationModel,
+  CommentModel,
+  LikeModel,
+  MediaItemModel,
+  UserProfileModel
 } = require('../database/models');
 const { Op } = require('sequelize');
 
@@ -17,7 +17,7 @@ const { Op } = require('sequelize');
  * Este es el "adaptador" entre nuestro dominio y la base de datos
  */
 class SequelizePublicationRepository extends IPublicationRepository {
-  
+
   /**
    * Buscar una publicación por ID
    */
@@ -30,7 +30,14 @@ class SequelizePublicationRepository extends IPublicationRepository {
             as: 'comments',
             where: { is_active: true },
             required: false,
-            order: [['created_at', 'DESC']]
+            order: [['created_at', 'DESC']],
+            include: [
+              {
+                model: UserProfileModel,
+                as: 'author',
+                attributes: ['display_name', 'avatar_url']
+              }
+            ]
           },
           {
             model: MediaItemModel,
@@ -74,16 +81,16 @@ class SequelizePublicationRepository extends IPublicationRepository {
    */
   async save(publication) {
     const transaction = await PublicationModel.sequelize.transaction();
-    
+
     try {
       // Buscar si ya existe
       const existingPublication = await PublicationModel.findByPk(
-        publication.id.value, 
+        publication.id.value,
         { transaction }
       );
 
       let publicationData;
-      
+
       if (existingPublication) {
         // Actualizar publicación existente
         await existingPublication.update({
@@ -95,7 +102,7 @@ class SequelizePublicationRepository extends IPublicationRepository {
           comments_count: publication.commentsCount,
           updated_at: publication.updatedAt
         }, { transaction });
-        
+
         publicationData = existingPublication;
       } else {
         // Crear nueva publicación
@@ -115,19 +122,19 @@ class SequelizePublicationRepository extends IPublicationRepository {
 
       // Guardar comentarios
       await this._saveComments(publication, transaction);
-      
+
       // Guardar likes
       await this._saveLikes(publication, transaction);
-      
+
       // Guardar media items
       await this._saveMediaItems(publication, transaction);
 
       await transaction.commit();
-      
+
       // Recargar con relaciones
       const savedPublication = await this.findById(publication.id.value);
       return savedPublication;
-      
+
     } catch (error) {
       await transaction.rollback();
       throw new Error(`Error al guardar publicación: ${error.message}`);
@@ -143,7 +150,7 @@ class SequelizePublicationRepository extends IPublicationRepository {
       if (!publication) {
         throw new Error('Publicación no encontrada');
       }
-      
+
       await publication.destroy();
     } catch (error) {
       throw new Error(`Error al eliminar publicación: ${error.message}`);
@@ -173,9 +180,9 @@ class SequelizePublicationRepository extends IPublicationRepository {
       const offset = (page - 1) * limit;
 
       const { count, rows } = await PublicationModel.findAndCountAll({
-        where: { 
+        where: {
           user_id: authorId,
-          is_active: true 
+          is_active: true
         },
         include: this._getIncludeOptions(),
         order: [['created_at', 'DESC']],
@@ -185,7 +192,7 @@ class SequelizePublicationRepository extends IPublicationRepository {
       });
 
       const publications = rows.map(pub => this._mapToAggregate(pub));
-      
+
       return {
         publications,
         total: count
@@ -208,16 +215,16 @@ class SequelizePublicationRepository extends IPublicationRepository {
       // Obtener amigos del usuario
       const userProfile = await UserProfileModel.findByPk(userId);
       const friendIds = userProfile ? JSON.parse(userProfile.friends || '[]') : [];
-      
+
       console.log('👥 Amigos del usuario:', friendIds);
 
       // ✅ LÓGICA CORRECTA DE VISIBILIDAD PARA FEED
       const visibilityConditions = [
         // 1. Publicaciones públicas de cualquier usuario
         { visibility: 'public' },
-        
+
         // 2. Sus propias publicaciones (todas las visibilidades)
-        { 
+        {
           user_id: userId,
           visibility: { [Op.in]: ['public', 'friends', 'private'] }
         }
@@ -232,7 +239,7 @@ class SequelizePublicationRepository extends IPublicationRepository {
       }
 
       const { count, rows } = await PublicationModel.findAndCountAll({
-        where: { 
+        where: {
           is_active: true,
           [Op.or]: visibilityConditions
         },
@@ -244,9 +251,9 @@ class SequelizePublicationRepository extends IPublicationRepository {
       });
 
       const publications = rows.map(pub => this._mapToAggregate(pub));
-      
+
       console.log(`✅ Feed generado: ${publications.length} publicaciones para usuario ${userId}`);
-      
+
       return {
         publications,
         total: count
@@ -279,7 +286,7 @@ class SequelizePublicationRepository extends IPublicationRepository {
       });
 
       const publications = rows.map(pub => this._mapToAggregate(pub));
-      
+
       return {
         publications,
         total: count
@@ -319,14 +326,22 @@ class SequelizePublicationRepository extends IPublicationRepository {
           publicationData.id,
           commentData.parent_id
         );
-        
+
         // Restaurar estado del comentario
         comment._createdAt = commentData.created_at;
         comment._updatedAt = commentData.updated_at;
         comment._likesCount = commentData.likes_count;
         comment._isEdited = commentData.is_edited;
         comment._status = commentData.is_active ? 'active' : 'inactive';
-        
+
+        // Mapear datos del autor
+        if (commentData.author) {
+          comment.setAuthorData(
+            commentData.author.display_name,
+            commentData.author.avatar_url
+          );
+        }
+
         publication._comments.set(comment.id, comment);
       });
     }
@@ -350,7 +365,7 @@ class SequelizePublicationRepository extends IPublicationRepository {
           mediaData.size,
           mediaData.order_position
         );
-        
+
         // Restaurar estado del media item
         mediaItem._createdAt = mediaData.created_at;
         if (mediaData.cloudinary_public_id) {
@@ -359,7 +374,7 @@ class SequelizePublicationRepository extends IPublicationRepository {
         if (mediaData.metadata) {
           mediaItem._metadata = mediaData.metadata;
         }
-        
+
         publication._mediaItems.set(mediaItem.id, mediaItem);
       });
     }
@@ -377,7 +392,14 @@ class SequelizePublicationRepository extends IPublicationRepository {
         as: 'comments',
         where: { is_active: true },
         required: false,
-        order: [['created_at', 'DESC']]
+        order: [['created_at', 'DESC']],
+        include: [
+          {
+            model: UserProfileModel,
+            as: 'author',
+            attributes: ['display_name', 'avatar_url']
+          }
+        ]
       },
       {
         model: MediaItemModel,
@@ -424,7 +446,7 @@ class SequelizePublicationRepository extends IPublicationRepository {
   async _saveLikes(publication, transaction) {
     // Eliminar likes existentes
     await LikeModel.destroy({
-      where: { 
+      where: {
         likeable_id: publication.id.value,
         likeable_type: 'post'
       },

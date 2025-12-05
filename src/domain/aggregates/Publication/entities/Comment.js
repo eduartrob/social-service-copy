@@ -2,7 +2,7 @@
 class Comment {
   constructor(id, authorId, text, publicationId, parentCommentId = null) {
     this.validate(id, authorId, text, publicationId);
-    
+
     this._id = id;
     this._authorId = authorId;
     this._text = text;
@@ -13,6 +13,10 @@ class Comment {
     this._likesCount = 0;
     this._isEdited = false;
     this._status = 'active'; // active, deleted, hidden
+
+    // Propiedades no persistidas (infladas)
+    this._authorName = null;
+    this._authorAvatar = null;
   }
 
   validate(id, authorId, text, publicationId) {
@@ -44,6 +48,15 @@ class Comment {
   get likesCount() { return this._likesCount; }
   get isEdited() { return this._isEdited; }
   get status() { return this._status; }
+
+  get authorName() { return this._authorName; }
+  get authorAvatar() { return this._authorAvatar; }
+
+  // Setters para datos inflados
+  setAuthorData(name, avatar) {
+    this._authorName = name;
+    this._authorAvatar = avatar;
+  }
 
   // Métodos de negocio
   updateText(newText) {
@@ -102,7 +115,9 @@ class Comment {
       updatedAt: this._updatedAt,
       likesCount: this._likesCount,
       isEdited: this._isEdited,
-      status: this._status
+      status: this._status,
+      authorName: this._authorName,
+      authorAvatar: this._authorAvatar
     };
   }
 }
