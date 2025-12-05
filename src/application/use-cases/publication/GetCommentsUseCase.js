@@ -31,9 +31,14 @@ class GetCommentsUseCase {
       const formattedComments = comments.map(comment => ({
         id: comment.id,
         authorId: comment.authorId,
-        authorName: comment.authorName, // ✅ Nombre del autor
-        authorAvatar: comment.authorAvatar, // ✅ Avatar del autor
-        content: comment.content,
+        authorName: comment.authorName, // ✅ Nombre plano
+        authorAvatar: comment.authorAvatar, // ✅ Avatar plano
+        author: { // ✅ Objeto autor anidado (común en frontends)
+          id: comment.authorId,
+          display_name: comment.authorName,
+          avatar_url: comment.authorAvatar
+        },
+        content: comment.text, // Mapeando comment.text a content
         parentCommentId: comment.parentId,
         level: comment.level,
         likesCount: comment.likesCount,
