@@ -334,12 +334,17 @@ class SequelizePublicationRepository extends IPublicationRepository {
         comment._isEdited = commentData.is_edited;
         comment._status = commentData.is_active ? 'active' : 'inactive';
 
-        // Mapear datos del autor
+        // DEBUG: Mapear datos del autor
+        console.log('🔍 Mapeando comentario:', commentData.id, 'Author:', commentData.author ? 'FOUND' : 'NULL');
+        if (commentData.author) console.log('👤 Author Data:', commentData.author.dataValues || commentData.author);
+
         if (commentData.author) {
           comment.setAuthorData(
             commentData.author.display_name,
             commentData.author.avatar_url
           );
+        } else {
+          console.log('⚠️ Autor no encontrado para comentario:', commentData.id, 'User ID:', commentData.user_id);
         }
 
         publication._comments.set(comment.id, comment);
